@@ -39,11 +39,7 @@ def cargar_datos_en_diccionario(arch1, arch2, arch3):
                 nom_supermercado = diccionario_sup.get(supermercado,"")  # obtiene el nombre del supermercado
                 dicc_fechas = {}
                 while registro_principal and supermercado == registro_principal[0]:
-                    dicc_fechas[registro_principal[2]] = dicc_fechas.get(registro_principal[2],
-                                                                         0) + float(
-                        registro_principal[3])
-                    # por q la suma? si esa clave se esta creando ahi, y si hubiera algo antes
-                    # no habria por q sumarlo, sino reemplazarlo o agregarlo
+                    dicc_fechas[registro_principal[2]] = float(registro_principal[3])
                     registro_principal = next(archivo_csv, None)
                 dicc_supermercados[nom_supermercado] = dicc_fechas
             if dicc_supermercados != {}:  # si el diccionario de supermercado esta vacio no lo guarda.
@@ -57,8 +53,8 @@ def cargar_datos_en_diccionario(arch1, arch2, arch3):
 def calcular_inflacion(diccionario, producto, fechas):  # En revision / Este sería el punto 2
     """Recibe como parametro un diccionario, una cadena y una tupla de fechas. Devuelve uan lista de tuplas, donde cada tupla contiene el nombre del supermercado y su inflacion"""
     inflacion = []
-    supermercado = diccionario.get(producto,
-                                   {})  # asigna en la variable supermercado, un dicionario cuya clave es el nombre del supermercado y el valor es otro diccionario de fechas
+    supermercado = diccionario.get(producto, {})
+    # asigna en la variable supermercado, un dicionario cuya clave es el nombre del supermercado y el valor es otro diccionario de fechas
     for clave in supermercado:
         dicc_fechas = supermercado.get(clave, {})
         precioi = dicc_fechas.get(fechas[0], 0)
@@ -75,7 +71,7 @@ def mostrar_menu():
 
 def main():
     cargar_datos_en_diccionario("archivo.csv","archivo2.csv","archivo3.csv")
-    while true:
+    while True:
         mostrar_menu
         opcion=input("Opcion: ")
         if opcion==5:
