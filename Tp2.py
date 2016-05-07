@@ -1,8 +1,43 @@
 import csv
-import sys
 
 CANT_OPCIONES = 5
 AÑO = 2016
+
+
+def main():
+    """Inicia un programa con interfaz amigable para cálculos de inflación,
+     entre otros, utilizando tres archivos csv."""
+    datos = cargar_datos_en_diccionario("archivo.csv", "archivo2.csv", "archivo3.csv")
+    opcion = ""
+    while opcion != 5:
+        mostrar_menu()
+        opcion = pedir_opcion()
+
+        if opcion == 1:
+            inflacion = inflacion_por_supermercado(datos, (pedir_fecha(), pedir_fecha()))
+            mostrar_inflacion(inflacion)
+
+        if opcion == 2:
+            try:
+                inflacion = calcular_inflacion(datos, pedir_producto(datos),
+                                               (pedir_fecha(), pedir_fecha()))
+                mostrar_inflacion(inflacion)
+            except (TypeError, KeyError) as error:
+                print("Error: ", error)
+
+        if opcion == 3:
+            inflacion_promedio, fechas = inflacion_general_promedio(datos,
+                                                                    (pedir_fecha(), pedir_fecha()))
+            mostrar_inflacion_promedio(inflacion_promedio, fechas)
+        if opcion == 4:
+            try:
+                supermercado, precio = mejor_precio_supermercado(datos, pedir_producto(datos),
+                                                                 pedir_fecha())
+                mostrar_mejor_precio(supermercado, precio)
+            except TypeError:
+                print("El producto no se vende en ninguno de los supermercados para esa fecha ")
+
+    print("Hasta luego.")
 
 
 # ----------------------------------------------------------------------
@@ -15,14 +50,15 @@ def cargar_datos_supermercado_en_diccionario(arch):
     with open(arch, "r") as f_archivo:
         dicc = {}
         archivo_csv = csv.reader(f_archivo)
-        encabezado = next(archivo_csv)
+        next(archivo_csv)  # encabezado
         for clave, valor in archivo_csv:
             dicc[clave] = dicc.get(clave, "") + valor
     return dicc
 
 
 def cargar_datos_en_diccionario(arch1, arch2, arch3):
-    """Ingresa como parametros 3 archivos. Devuelve un diccionario con los datos de los archivos."""
+    """Ingresa como parametros 3 archivos. Devuelve un diccionario con los datos
+    de los archivos de la forma {PRODUCTO:{SUPERMERCADO:{FECHA:PRECIO}"""
     # abro el archivo de 4 campos y el de los producto.
     with open(arch1, "r") as principal, open(arch2, "r") as secundario:
         # cargo los datos del  archivo de los supermercados y lo meto en un diccionario.
@@ -31,22 +67,39 @@ def cargar_datos_en_diccionario(arch1, arch2, arch3):
         archivo_csv = csv.reader(principal)
         encabezado_principal = next(archivo_csv, None)
         encabezado_secundario = next(datos_productos_csv, None)
-        print(encabezado_principal, encabezado_secundario)
         registro_principal = next(archivo_csv, None)
         registro_secundario = next(datos_productos_csv, None)
         dicc_productos = {}
         # empieza corte de control por producto.
         # Mientras registro_principal y registro_secundario no sean None.
         while registro_principal and registro_secundario:
-            print(len(registro_principal))
-            if len(registro_principal) != len(encabezado_principal):
-                raise ValueError('Una línea no concuerda con el encabezado del archivo de precios.')
-            if len(registro_secundario) != len(encabezado_secundario):
-                raise ValueError('Una línea no concuerda con el encabezado del archivo de precios.')
+            try:
+                if len(registro_principal) != len(encabezado_principal):
+                    raise ValueError(
+                        'Una línea no concuerda con el encabezado del archivo de precios.')
+                if len(registro_secundario) != len(encabezado_secundario):
+                    raise ValueError(
+                        'Una línea no concuerda con el encabezado del archivo de productos.')
+            except ValueError as err:
+                print('Aviso', err)
+                registro_principal = next(archivo_csv)
+                continue
             id_producto = registro_principal[1]
             dicc_supermercados = {}
             while registro_principal and id_producto == registro_principal[1] and id_producto <= \
                     registro_secundario[0]:
+
+                try:
+                    if len(registro_principal) != len(encabezado_principal):
+                        raise ValueError(
+                            'Una línea no concuerda con el encabezado del archivo de precios.')
+                    if len(registro_secundario) != len(encabezado_secundario):
+                        raise ValueError(
+                            'Una línea no concuerda con el encabezado del archivo de productos.')
+                except ValueError as err:
+                    print('Aviso:', err)
+                    registro_principal = next(archivo_csv)
+                    continue
                 # recorro archivo produsctos hasta encontrar el id producto
                 if registro_principal[1] < registro_secundario[0]:
                     registro_principal = next(archivo_csv, None)
@@ -56,13 +109,29 @@ def cargar_datos_en_diccionario(arch1, arch2, arch3):
                 nom_supermercado = diccionario_sup.get(supermercado, "")
                 dicc_fechas = {}
                 while registro_principal and supermercado == registro_principal[0]:
-                    dicc_fechas[registro_principal[2]] = float(registro_principal[3])
+                    try:
+                        if len(registro_principal) != len(encabezado_principal):
+                            raise ValueError(
+                                'Una línea no concuerda con el encabezado del archivo de precios.')
+                        if len(registro_secundario) != len(encabezado_secundario):
+                            raise ValueError(
+                                'Una línea no concuerda con el encabezado del archivo de productos.')
+                    except ValueError as err:
+                        print('Aviso:', err)
+                        continue
+                    try:
+                        dicc_fechas[registro_principal[2]] = float(registro_principal[3])
+                    except ValueError:
+                        print(
+                            'Una línea contiene algo distinto de un precio en el campo de precio.')
+                        del dicc_fechas[registro_principal[2]]
                     registro_principal = next(archivo_csv, None)
                 dicc_supermercados[nom_supermercado] = dicc_fechas
             if dicc_supermercados != {}:  # si el diccionario está vacío, no lo guarda.
                 # La clave va a ser el nombre del producto
                 dicc_productos[registro_secundario[1]] = dicc_supermercados
             registro_secundario = next(datos_productos_csv, None)
+    print(dicc_productos)
     return dicc_productos
 
 
@@ -99,27 +168,17 @@ def calcular_inflacion(diccionario, producto, fechas):
     # asigna en la variable supermercado, un dicionario cuya clave
     # es el nombre del supermercado y el valor es otro diccionario de fechas
     for clave in supermercado:
-        try:
-            dicc_fechas = supermercado.get(clave, {})
-            precioi = dicc_fechas.get(fechas[0], None)
-            preciof = dicc_fechas.get(fechas[1], None)
-            inflacion.append((clave, 100 * ((preciof - precioi) / precioi)))
-        except TypeError:
-            continue
+
+        dicc_fechas = supermercado.get(clave, {})
+        precioi = dicc_fechas.get(fechas[0], None)
+        preciof = dicc_fechas.get(fechas[1], None)
+        inflacion.append((clave, 100 * ((preciof - precioi) / precioi)))
+
+        # @Agusu: aca habia un try except typerror pero ya verificamos los datos en cargar_Datos
+
     if inflacion:
         return inflacion
     return None
-
-
-def mostrar_inflacion(lista):
-    """Recibe como parametro una secuencia.
-    Imprime por pantalla los diferentes supermercados y su inflacion"""
-    try:
-        for supermercado, inflacion in lista:
-            print("La inflacion del supermercado {} es {:.2f}% ".format(supermercado, inflacion))
-    except:
-        raise TypeError(
-            "El producto no se vende en ninguno de los supermercados para ese rango de fechas")
 
 
 # -------------------------------------------------------------------
@@ -132,21 +191,12 @@ def inflacion_general_promedio(diccionario, fechas):
     Devuelve la inflacion general promedio de todos los productos """
     inflacion_promedio = 0
     for producto in diccionario.keys():
-        print(producto)
         inflacion = calcular_inflacion(diccionario, producto, fechas)
         inflacion_total_producto = 0
         for supermecado, inflacion_parcial_producto in inflacion:
             inflacion_total_producto += inflacion_parcial_producto
         inflacion_promedio += inflacion_total_producto / len(inflacion)
     return (inflacion_promedio / len(diccionario.keys())), fechas
-
-
-def mostrar_inflacion_promedio(inflacion_promedio, fechas):
-    """Recibe un número flotante con la inflacion promedio y lo imprime por pantalla"""
-    print("La inflacion general promedio "
-          "entre las fechas {} y {} es : {:.2f}".format(fechas[0],
-                                                        fechas[1],
-                                                        inflacion_promedio))
 
 
 # -----------------------------------------------------------------
@@ -161,78 +211,62 @@ def mejor_precio_supermercado(diccionario, producto, fecha):
     supermecado = diccionario.get(producto, {})
     mejor_precio = None
     for clave in supermecado:
-        try:
-            dicc_fechas = supermecado[clave]
-            precio = dicc_fechas.get(fecha, None)
-            if not mejor_precio:  # el primer precio siempre va a ser el mejor precio
-                mejor_precio = precio
-                supermercado_mejor_precio = clave
-            elif precio < mejor_precio:
-                mejor_precio = precio
-                supermercado_mejor_precio = clave
-        except TypeError:
-            # ······················· acá debería hacer algo ······················
-            continue
+        dicc_fechas = supermecado[clave]
+        precio = dicc_fechas.get(fecha, None)
+        if not mejor_precio:  # el primer precio siempre va a ser el mejor precio
+            mejor_precio = precio
+            supermercado_mejor_precio = clave
+        elif precio < mejor_precio:
+            mejor_precio = precio
+            supermercado_mejor_precio = clave
+            # @Agusu: habia un except typeerror pero lo borré porque los datos se
+            # @Agusu: verifican en cargar_datos, no se como podria dar error esto
     return supermercado_mejor_precio, mejor_precio
 
 
+# ----------------------------------------------------------------------------------
+# |                 Interfaz e impresión en pantalla                               |
+# ----------------------------------------------------------------------------------
+
+def mostrar_inflacion_promedio(inflacion_promedio, fechas):
+    """Recibe un número flotante con la inflacion promedio y lo imprime por pantalla"""
+    print("La inflacion general promedio "
+          "entre las fechas {} y {} es : {:.2f}".format(fechas[0],
+                                                        fechas[1],
+                                                        inflacion_promedio))
+
+
+def mostrar_inflacion(lista):
+    """Recibe como parametro una secuencia.
+    Imprime por pantalla los diferentes supermercados y su inflacion"""
+    try:
+        for supermercado, inflacion in lista:
+            print("La inflacion del supermercado {} es {:.2f}% ".format(supermercado, inflacion))
+    except:
+        raise TypeError(
+            "El producto no se vende en ninguno de los supermercados para ese rango de fechas")
+
+
 def mostrar_mejor_precio(supermercado, precio):
+    """Imprime el mejor precio para un producto y el supermercado"""
     print("El precio más bajo del producto es ${:.2f} y se encuentra en el supermercado {}".format(
         precio, supermercado))
 
 
-# -----------------------------------------------------------------------------------
-# |                             Mostrar Menu y Main                                 |
-# ----------------------------------------------------------------------------------
-
-
 def mostrar_menu():
-    print(
-        "1. Inflación por supermercado\n"
-        "2. Inflación por producto\n"
-        "3. Inflación general promedio\n"
-        "4. Mejor precio para un producto\n"
-        "5. Salir")
+    """Imprime el menú principal"""
+    lista_opciones = ['Inflación por supermercado',
+                      'Inflación por producto',
+                      'Inflación general promedio'
+                      'Mejor precio para un producto',
+                      'Salir']
+    imprimir_opciones(lista_opciones)
 
 
-def main():
-    try:
-        datos = cargar_datos_en_diccionario("precios.csv", "productos.csv", "supermercados.csv")
-    except ValueError:
-        print('Mensaje')
-        pass
-
-    opcion = ""
-    while opcion != 5:
-        mostrar_menu()
-        opcion = pedir_opcion()
-
-        if opcion == 1:
-            inflacion = inflacion_por_supermercado(datos, (pedir_fecha(), pedir_fecha()))
-            mostrar_inflacion(inflacion)
-
-        if opcion == 2:
-            try:
-                inflacion = calcular_inflacion(datos, pedir_producto(datos),
-                                               (pedir_fecha(), pedir_fecha()))
-                mostrar_inflacion(inflacion)
-            except (TypeError, KeyError) as error:
-                print("Error: ", error)
-
-        if opcion == 3:
-            inflacion_promedio, fechas = inflacion_general_promedio(datos,
-                                                                    (pedir_fecha(), pedir_fecha()))
-            mostrar_inflacion_promedio(inflacion_promedio, fechas)
-
-        if opcion == 4:
-            try:
-                supermercado, precio = mejor_precio_supermercado(datos, pedir_producto(datos),
-                                                                 pedir_fecha())
-                mostrar_mejor_precio(supermercado, precio)
-            except TypeError:
-                print("El producto no se vende en ninguno de los supermercados para esa fecha ")
-
-    print("Hasta luego.")
+def imprimir_opciones(lista):
+    """Imprime una lista de opciones"""
+    for x in range(len(lista)):
+        print(str(x + 1) + ". " + str(lista[x]))
 
 
 # -----------------------------------------------------------------------------
@@ -241,10 +275,13 @@ def main():
 
 
 def pedir_opcion(cantidad=CANT_OPCIONES):
+    """Pide el ingreso de una opcion"""
     return verif_ingreso_opcion(input("Su elección: "), cantidad)
 
 
 def pedir_fecha():
+    """Pide el ingreso de una fecha (año,mes) y se devuelve como
+    una cadena de la forma 'AAAAMM'"""
     print("Ingrese una fecha")
     año = verif_ingreso_año(input("Año (en formato AAAA): "))
     mes = verif_ingreso_mes(input("Mes (número): "))
@@ -252,13 +289,16 @@ def pedir_fecha():
 
 
 def pedir_producto(diccionario):
-    return verif_ingreso_producto(input('Producto a estudiar: '), diccionario)
+    """Pide un nombre de producto (o una parte de él)"""
+    return verif_ingreso_producto(input('Producto buscado: '), diccionario)
 
 
 # ----------------------------------------------------------------------------
 # |                             Verificaciones                               |
 # ----------------------------------------------------------------------------
 def buscar_producto_ingresado(cadena, diccionario):
+    """Busca la cadena en el diccionario pasado por parámetro y devuelve
+    todas las claves que contienen la cadena en forma de lista, desordenada"""
     listaaux = []
     for nombre_producto in diccionario:
         # if len(cadena) <= len(nombre_producto):
@@ -272,19 +312,18 @@ def buscar_producto_ingresado(cadena, diccionario):
     return listaaux
 
 
-def imprimir_opciones(lista):
-    for x in range(len(lista)):
-        print(str(x + 1) + ". " + str(lista[x]))
-
-
 def verif_ingreso_producto(cadena, diccionario):
+    """Dada una cadena 'de busqueda' y un diccionario, muestra todos los productos
+    que contengan la cadena y se solicita que se elija uno de ellos. Devuelve
+    la descripcion del producto elegido"""
     encontrados = buscar_producto_ingresado(cadena, diccionario)
     imprimir_opciones(encontrados)
-    buscado = encontrados[pedir_opcion(len(encontrados))-1]
+    buscado = encontrados[pedir_opcion(len(encontrados)) - 1]
     return buscado
 
 
 def verif_ingreso_mes(cadena):
+    """Solicita se ingrese una cadena hasta que sea un mes y se devuelve"""
     while not es_mes(cadena):
         cadena = input('Ingrese el número de mes: ')
     if len(cadena) == 1:
@@ -293,6 +332,7 @@ def verif_ingreso_mes(cadena):
 
 
 def verif_ingreso_año(cadena):
+    """Solicita se ingrese una cadena hasta que sea un año y se devuelve"""
     while not es_año(cadena):
         cadena = input('Ingrese el año en formato AAAA: ')
     return cadena
@@ -307,14 +347,18 @@ def verif_ingreso_opcion(cadena, cantidad):
 
 
 def es_numero_opcion(cadena, cantidad_opciones):
+    """Verifica que la cadena sea una de las opciones posibles, establecidas por la
+    cantidad pasada por parámetro"""
     return cadena.isdigit() and int(cadena) <= cantidad_opciones
 
 
 def es_mes(cadena):
+    """Verifica que la cadena sea un mes (en números)"""
     return cadena.isdigit() and 12 >= int(cadena) > 0
 
 
 def es_año(cadena):
+    """Verifica que la cadena sea un año"""
     return cadena.isdigit() and len(cadena) == 4 and 0 < int(cadena) <= AÑO
 
 
