@@ -47,93 +47,109 @@ def main():
 def cargar_datos_supermercado_en_diccionario(arch):
     """Ingresa como parametro la ruta de un archivo csv con 2 campos.
     Devuelve un diccionario con el primer campo del archivo como clave y el segundo como valor"""
-    with open(arch, "r") as f_archivo:
-        dicc = {}
-        archivo_csv = csv.reader(f_archivo)
-        next(archivo_csv)  # encabezado
-        for clave, valor in archivo_csv:
-            dicc[clave] = dicc.get(clave, "") + valor
-    return dicc
+    try:
+        with open(arch, "r") as f_archivo:
+            dicc = {}
+            archivo_csv = csv.reader(f_archivo)
+            next(archivo_csv)
+            for clave, valor in archivo_csv:
+                clave = int(clave)
+                dicc[clave] = dicc.get(clave, "") + valor
+        return dicc
+    except IOError:
+        raise IOError
 
+def verificar_registro_principal(registro, encabezado):
+    """Recibe una lista con la linea actual del archivo precio.csv y el encabezado del
+    mismo archivo. Devuelve True si la linea esta bien cargada y False sino lo está"""
+    try:
+
+        if len(registro) == len(encabezado):
+            if registro[0].isdigit() and registro[1].isdigit():
+                float(registro[3])
+                if len(registro[2]) == 6:
+                    if es_año(registro[2][:4]) and es_mes(registro[2][4:]):
+                        return True
+
+        return False
+    except TypeError: # por si entra None o el precio no es numérico
+        return False
+
+def verificar_registro_secundario(registro, encabezado):
+    """Recibe una lista con la linea actual del archivo productos.csv y el encabezado
+     del mismo archivo. Devuelve True si la linea esta bien cargada y False si no lo esta """
+    try:
+        if len(registro) != len(encabezado):
+            return False
+        try:
+            assert type(registro[1]) == str
+        except AssertionError:
+            return False
+        return True
+    except TypeError: # por si entra None
+        return False
 
 def cargar_datos_en_diccionario(arch1, arch2, arch3):
     """Ingresa como parametros 3 archivos. Devuelve un diccionario con los datos
     de los archivos de la forma {PRODUCTO:{SUPERMERCADO:{FECHA:PRECIO}"""
     # abro el archivo de 4 campos y el de los producto.
-    with open(arch1, "r") as principal, open(arch2, "r") as secundario:
-        # cargo los datos del  archivo de los supermercados y lo meto en un diccionario.
-        diccionario_sup = cargar_datos_supermercado_en_diccionario(arch3)
-        datos_productos_csv = csv.reader(secundario)
-        archivo_csv = csv.reader(principal)
-        encabezado_principal = next(archivo_csv, None)
-        encabezado_secundario = next(datos_productos_csv, None)
-        registro_principal = next(archivo_csv, None)
-        registro_secundario = next(datos_productos_csv, None)
-        dicc_productos = {}
-        # empieza corte de control por producto.
-        # Mientras registro_principal y registro_secundario no sean None.
-        while registro_principal and registro_secundario:
-            try:
-                if len(registro_principal) != len(encabezado_principal):
-                    raise ValueError(
-                        'Una línea no concuerda con el encabezado del archivo de precios.')
-                if len(registro_secundario) != len(encabezado_secundario):
-                    raise ValueError(
-                        'Una línea no concuerda con el encabezado del archivo de productos.')
-            except ValueError as err:
-                print('Aviso', err)
-                registro_principal = next(archivo_csv)
-                continue
-            id_producto = registro_principal[1]
-            dicc_supermercados = {}
-            while registro_principal and id_producto == registro_principal[1] and id_producto <= \
-                    registro_secundario[0]:
-
-                try:
-                    if len(registro_principal) != len(encabezado_principal):
-                        raise ValueError(
-                            'Una línea no concuerda con el encabezado del archivo de precios.')
-                    if len(registro_secundario) != len(encabezado_secundario):
-                        raise ValueError(
-                            'Una línea no concuerda con el encabezado del archivo de productos.')
-                except ValueError as err:
-                    print('Aviso:', err)
-                    registro_principal = next(archivo_csv)
-                    continue
-                # recorro archivo produsctos hasta encontrar el id producto
-                if registro_principal[1] < registro_secundario[0]:
-                    registro_principal = next(archivo_csv, None)
-                    id_producto = registro_principal[1]
-                    continue
-                supermercado = registro_principal[0]
-                nom_supermercado = diccionario_sup.get(supermercado, "")
-                dicc_fechas = {}
-                while registro_principal and supermercado == registro_principal[0]:
-                    try:
-                        if len(registro_principal) != len(encabezado_principal):
-                            raise ValueError(
-                                'Una línea no concuerda con el encabezado del archivo de precios.')
-                        if len(registro_secundario) != len(encabezado_secundario):
-                            raise ValueError(
-                                'Una línea no concuerda con el encabezado del archivo de productos.')
-                    except ValueError as err:
-                        print('Aviso:', err)
-                        continue
-                    try:
-                        dicc_fechas[registro_principal[2]] = float(registro_principal[3])
-                    except ValueError:
-                        print(
-                            'Una línea contiene algo distinto de un precio en el campo de precio.')
-                        del dicc_fechas[registro_principal[2]]
-                    registro_principal = next(archivo_csv, None)
-                dicc_supermercados[nom_supermercado] = dicc_fechas
-            if dicc_supermercados != {}:  # si el diccionario está vacío, no lo guarda.
-                # La clave va a ser el nombre del producto
-                dicc_productos[registro_secundario[1]] = dicc_supermercados
+    try:
+        with open(arch1, "r") as principal, open(arch2, "r") as secundario:
+            # cargo los datos del  archivo de los supermercados y lo meto en un diccionario.
+            diccionario_sup = cargar_datos_supermercado_en_diccionario(arch3)
+            datos_productos_csv = csv.reader(secundario)
+            archivo_csv = csv.reader(principal)
+            encabezado_principal = next(archivo_csv, None) # obtiene el encabezado
+            encabezado_secundario = next(datos_productos_csv, None) # obtiene el encabezado
+            registro_principal = next(archivo_csv, None)
             registro_secundario = next(datos_productos_csv, None)
-    print(dicc_productos)
-    return dicc_productos
+            dicc_productos = {}
+            lista_registros_fallidos = []
+            # empieza corte de control por producto.
+            # Mientras registro_principal y registro_secundario no sean None.
+            while registro_principal and registro_secundario:
+                while not verificar_registro_principal(registro_principal, encabezado_principal) \
+                        and registro_principal:
+                    lista_registros_fallidos.append(registro_principal)
+                    registro_principal = next(archivo_csv, None)
+                while not verificar_registro_secundario(registro_secundario, encabezado_secundario)\
+                        and registro_secundario:
+                    registro_secundario = next(datos_productos_csv, None)
 
+                id_producto = int(registro_principal[1])
+                dicc_supermercados = {}
+
+                while registro_principal and id_producto == int(registro_principal[1]) \
+                        and id_producto <= int(registro_secundario[0]):
+                    # recorro archivo productos hasta encontrar el id producto
+                    if int(registro_principal[1]) < int(registro_secundario[0]):
+                        while not verificar_registro_principal(registro_principal, encabezado_principal)\
+                                and registro_principal:
+                            lista_registros_fallidos.append(registro_principal)
+                            registro_principal = next(archivo_csv, None)
+                        id_producto = registro_principal[1]
+                        continue
+
+                    supermercado = int(registro_principal[0])
+                    nom_supermercado = diccionario_sup.get(supermercado, "")
+                    dicc_fechas = {}
+
+                    while registro_principal and supermercado == int(registro_principal[0]):
+                        dicc_fechas[registro_principal[2]] = float(registro_principal[3])
+                        registro_principal = next(archivo_csv, None)
+                        while not verificar_registro_principal(registro_principal, encabezado_principal) \
+                                and registro_principal:
+                            lista_registros_fallidos.append(registro_principal)
+                            registro_principal = next(archivo_csv, None)
+
+                    dicc_supermercados[nom_supermercado] = dicc_fechas
+
+                if dicc_supermercados != {}:  # si el diccionario está vacío, no lo guarda.
+                    dicc_productos[registro_secundario[1]] = dicc_supermercados # La clave va a ser el nombre del producto
+                registro_secundario = next(datos_productos_csv, None)
+        return dicc_productos, lista_registros_fallidos
+    except IOError:
+        print("No se encontró el/los archivo/s. Ingrese bien la ruta/nombre del archivo/s")
 
 # -------------------------------------------------------------------------
 # |                  Inflacion por Supermercado y Prodcuto                |
@@ -257,7 +273,7 @@ def mostrar_menu():
     """Imprime el menú principal"""
     lista_opciones = ['Inflación por supermercado',
                       'Inflación por producto',
-                      'Inflación general promedio'
+                      'Inflación general promedio',
                       'Mejor precio para un producto',
                       'Salir']
     imprimir_opciones(lista_opciones)
