@@ -1,34 +1,50 @@
 import csv
 
 CANT_OPCIONES = 5
+LISTA_OPCIONES = ['Inflación por supermercado',
+                  'Inflación por producto',
+                  'Inflación general promedio',
+                  'Mejor precio para un producto',
+                  'Salir']
 AÑO = 2016
 
 
 def main():
     """Inicia un programa con interfaz amigable para cálculos de inflación,
      entre otros, utilizando tres archivos csv."""
-    datos = cargar_datos_en_diccionario("archivo.csv", "archivo2.csv", "archivo3.csv")
+    datos, lista_registros_fallidos = cargar_datos_en_diccionario("precios.csv",
+                                                                  "productos.csv",
+                                                                  "supermercados.csv")
+    imprimir_fallidos(lista_registros_fallidos)
+
     opcion = ""
     while opcion != 5:
         mostrar_menu()
         opcion = pedir_opcion()
 
         if opcion == 1:
-            inflacion = inflacion_por_supermercado(datos, (pedir_fecha(), pedir_fecha()))
+            print('Ingrese la fecha inicial y final del periodo a estudiar')
+            fechas = (pedir_fecha(), pedir_fecha())
+            inflacion = inflacion_por_supermercado(datos, fechas)
             mostrar_inflacion(inflacion)
 
         if opcion == 2:
             try:
-                inflacion = calcular_inflacion(datos, pedir_producto(datos),
-                                               (pedir_fecha(), pedir_fecha()))
+                producto = pedir_producto(datos)
+                print('Ingrese la fecha inicial y final del periodo a estudiar')
+                fechas = (pedir_fecha(), pedir_fecha())
+                inflacion = calcular_inflacion(datos, producto,
+                                               fechas)
                 mostrar_inflacion(inflacion)
             except (TypeError, KeyError) as error:
-                print("Error: ", error)
+                print(error)
 
         if opcion == 3:
-            inflacion_promedio, fechas = inflacion_general_promedio(datos,
-                                                                    (pedir_fecha(), pedir_fecha()))
-            mostrar_inflacion_promedio(inflacion_promedio, fechas)
+            print('Ingrese la fecha inicial y final del periodo a estudiar')
+            fechas = (pedir_fecha(), pedir_fecha())
+            inflacion_promedio = inflacion_general_promedio(datos, fechas)
+            mostrar_inflacion_promedio(inflacion_promedio)
+
         if opcion == 4:
             try:
                 supermercado, precio = mejor_precio_supermercado(datos, pedir_producto(datos),
@@ -59,6 +75,7 @@ def cargar_datos_supermercado_en_diccionario(arch):
     except IOError:
         raise IOError
 
+
 def verificar_registro_principal(registro, encabezado):
     """Recibe una lista con la linea actual del archivo precio.csv y el encabezado del
     mismo archivo. Devuelve True si la linea esta bien cargada y False sino lo está"""
@@ -72,8 +89,9 @@ def verificar_registro_principal(registro, encabezado):
                         return True
 
         return False
-    except TypeError: # por si entra None o el precio no es numérico
+    except TypeError:  # por si entra None o el precio no es numérico
         return False
+
 
 def verificar_registro_secundario(registro, encabezado):
     """Recibe una lista con la linea actual del archivo productos.csv y el encabezado
@@ -86,8 +104,9 @@ def verificar_registro_secundario(registro, encabezado):
         except AssertionError:
             return False
         return True
-    except TypeError: # por si entra None
+    except TypeError:  # por si entra None
         return False
+
 
 def cargar_datos_en_diccionario(arch1, arch2, arch3):
     """Ingresa como parametros 3 archivos. Devuelve un diccionario con los datos
@@ -99,8 +118,8 @@ def cargar_datos_en_diccionario(arch1, arch2, arch3):
             diccionario_sup = cargar_datos_supermercado_en_diccionario(arch3)
             datos_productos_csv = csv.reader(secundario)
             archivo_csv = csv.reader(principal)
-            encabezado_principal = next(archivo_csv, None) # obtiene el encabezado
-            encabezado_secundario = next(datos_productos_csv, None) # obtiene el encabezado
+            encabezado_principal = next(archivo_csv, None)  # obtiene el encabezado
+            encabezado_secundario = next(datos_productos_csv, None)  # obtiene el encabezado
             registro_principal = next(archivo_csv, None)
             registro_secundario = next(datos_productos_csv, None)
             dicc_productos = {}
@@ -112,7 +131,7 @@ def cargar_datos_en_diccionario(arch1, arch2, arch3):
                         and registro_principal:
                     lista_registros_fallidos.append(registro_principal)
                     registro_principal = next(archivo_csv, None)
-                while not verificar_registro_secundario(registro_secundario, encabezado_secundario)\
+                while not verificar_registro_secundario(registro_secundario, encabezado_secundario) \
                         and registro_secundario:
                     registro_secundario = next(datos_productos_csv, None)
 
@@ -123,7 +142,8 @@ def cargar_datos_en_diccionario(arch1, arch2, arch3):
                         and id_producto <= int(registro_secundario[0]):
                     # recorro archivo productos hasta encontrar el id producto
                     if int(registro_principal[1]) < int(registro_secundario[0]):
-                        while not verificar_registro_principal(registro_principal, encabezado_principal)\
+                        while not verificar_registro_principal(registro_principal,
+                                                               encabezado_principal) \
                                 and registro_principal:
                             lista_registros_fallidos.append(registro_principal)
                             registro_principal = next(archivo_csv, None)
@@ -137,7 +157,8 @@ def cargar_datos_en_diccionario(arch1, arch2, arch3):
                     while registro_principal and supermercado == int(registro_principal[0]):
                         dicc_fechas[registro_principal[2]] = float(registro_principal[3])
                         registro_principal = next(archivo_csv, None)
-                        while not verificar_registro_principal(registro_principal, encabezado_principal) \
+                        while not verificar_registro_principal(registro_principal,
+                                                               encabezado_principal) \
                                 and registro_principal:
                             lista_registros_fallidos.append(registro_principal)
                             registro_principal = next(archivo_csv, None)
@@ -145,11 +166,13 @@ def cargar_datos_en_diccionario(arch1, arch2, arch3):
                     dicc_supermercados[nom_supermercado] = dicc_fechas
 
                 if dicc_supermercados != {}:  # si el diccionario está vacío, no lo guarda.
-                    dicc_productos[registro_secundario[1]] = dicc_supermercados # La clave va a ser el nombre del producto
+                    dicc_productos[registro_secundario[
+                        1]] = dicc_supermercados  # La clave va a ser el nombre del producto
                 registro_secundario = next(datos_productos_csv, None)
         return dicc_productos, lista_registros_fallidos
     except IOError:
         print("No se encontró el/los archivo/s. Ingrese bien la ruta/nombre del archivo/s")
+
 
 # -------------------------------------------------------------------------
 # |                  Inflacion por Supermercado y Prodcuto                |
@@ -177,21 +200,22 @@ def inflacion_por_supermercado(diccionario, fechas):
 
 def calcular_inflacion(diccionario, producto, fechas):
     """Recibe como parametro un diccionario, una cadena y una tupla de fechas.
-    Devuelve una lista de tuplas, donde cada tupla contiene
-    el nombre del supermercado y su inflacion"""
+    Devuelve una lista de tuplas, donde cada tupla contiene el nombre del
+    supermercado y su inflacion"""
     inflacion = []
     supermercado = diccionario.get(producto, {})
     # asigna en la variable supermercado, un dicionario cuya clave
     # es el nombre del supermercado y el valor es otro diccionario de fechas
     for clave in supermercado:
-
-        dicc_fechas = supermercado.get(clave, {})
-        precioi = dicc_fechas.get(fechas[0], None)
-        preciof = dicc_fechas.get(fechas[1], None)
-        inflacion.append((clave, 100 * ((preciof - precioi) / precioi)))
-
-        # @Agusu: aca habia un try except typerror pero ya verificamos los datos en cargar_Datos
-
+        try:
+            dicc_fechas = supermercado.get(clave, {})
+            precioi = dicc_fechas.get(fechas[0], None)
+            preciof = dicc_fechas.get(fechas[1], None)
+            inflacion.append((clave, 100 * ((preciof - precioi) / precioi)))
+        except TypeError:
+            # Si el supermercado no tiene el producto para alguna de las fechas,
+            # pasa al siguiente supermercado
+            continue
     if inflacion:
         return inflacion
     return None
@@ -219,24 +243,24 @@ def inflacion_general_promedio(diccionario, fechas):
 # |                    Mejor Precio Producto                     |
 # -----------------------------------------------------------------
 
-
 def mejor_precio_supermercado(diccionario, producto, fecha):
     """Recibe como parametro un diccionario, el nombre de un producto y una fecha.
-    Devuelve el precio más bajo y el nombre del supermecado que vende el producto a ese precio"""
-    supermercado_mejor_precio = ""
+    Devuelve el precio más bajo  y el nombre del supermecado que vende el producto a ese precio"""
     supermecado = diccionario.get(producto, {})
+    supermercado_mejor_precio = ''
     mejor_precio = None
     for clave in supermecado:
-        dicc_fechas = supermecado[clave]
-        precio = dicc_fechas.get(fecha, None)
-        if not mejor_precio:  # el primer precio siempre va a ser el mejor precio
-            mejor_precio = precio
-            supermercado_mejor_precio = clave
-        elif precio < mejor_precio:
-            mejor_precio = precio
-            supermercado_mejor_precio = clave
-            # @Agusu: habia un except typeerror pero lo borré porque los datos se
-            # @Agusu: verifican en cargar_datos, no se como podria dar error esto
+        try:
+            dicc_fechas = supermecado[clave]
+            precio = dicc_fechas.get(fecha, None)
+            if not mejor_precio:  # el primer precio siempre va a ser el mejor precio
+                mejor_precio = precio
+                supermercado_mejor_precio = clave
+            elif precio < mejor_precio:
+                mejor_precio = precio
+                supermercado_mejor_precio = clave
+        except TypeError:  # si el supermercado no vende el producto en esa fecha, pasa al siguiente
+            continue
     return supermercado_mejor_precio, mejor_precio
 
 
@@ -244,12 +268,11 @@ def mejor_precio_supermercado(diccionario, producto, fecha):
 # |                 Interfaz e impresión en pantalla                               |
 # ----------------------------------------------------------------------------------
 
-def mostrar_inflacion_promedio(inflacion_promedio, fechas):
-    """Recibe un número flotante con la inflacion promedio y lo imprime por pantalla"""
-    print("La inflacion general promedio "
-          "entre las fechas {} y {} es : {:.2f}".format(fechas[0],
-                                                        fechas[1],
-                                                        inflacion_promedio))
+
+def mostrar_inflacion_promedio(inflacion_promedio):
+    """Recibe una tupla con la inflacion promedio y una tupla de fechas y los imprime por pantalla"""
+    print("La inflacion general promedio entre las fechas {} y {} es : {:.2f}% ".format(
+        inflacion_promedio[1][0], inflacion_promedio[1][1], inflacion_promedio[0]))
 
 
 def mostrar_inflacion(lista):
@@ -257,26 +280,38 @@ def mostrar_inflacion(lista):
     Imprime por pantalla los diferentes supermercados y su inflacion"""
     try:
         for supermercado, inflacion in lista:
-            print("La inflacion del supermercado {} es {:.2f}% ".format(supermercado, inflacion))
+            print("La inflacion del supermercado {} para ese producto es {:.2f}% ".format(
+                supermercado, inflacion))
     except:
         raise TypeError(
             "El producto no se vende en ninguno de los supermercados para ese rango de fechas")
 
 
 def mostrar_mejor_precio(supermercado, precio):
-    """Imprime el mejor precio para un producto y el supermercado"""
-    print("El precio más bajo del producto es ${:.2f} y se encuentra en el supermercado {}".format(
-        precio, supermercado))
+    try:
+        print(
+            "El precio más bajo del producto es ${:.2f} y se encuentra en el supermercado {}".format(
+                precio, supermercado))
+    except TypeError:  # Si el producto no se vende en ningun supermercado para esa fecha, tira error
+        raise TypeError("El producto no se vende en ninguno de los supermercados para esa fecha ")
 
 
 def mostrar_menu():
     """Imprime el menú principal"""
-    lista_opciones = ['Inflación por supermercado',
-                      'Inflación por producto',
-                      'Inflación general promedio',
-                      'Mejor precio para un producto',
-                      'Salir']
-    imprimir_opciones(lista_opciones)
+    print('------\nMenú principal \n------')
+    imprimir_opciones(LISTA_OPCIONES)
+    print('------')
+
+
+def imprimir_fallidos(lista):
+    """Imprime una lista de los registros ignorados por tener mas o menos campos
+    que los esperados"""
+    if lista:
+        listaaux = []
+        for registro in lista:
+            listaaux += [",".join(campo for campo in registro)]
+        print('Los siguientes registros se han ignorado por inconsistencia de datos:')
+        imprimir_opciones(listaaux)
 
 
 def imprimir_opciones(lista):
@@ -317,11 +352,6 @@ def buscar_producto_ingresado(cadena, diccionario):
     todas las claves que contienen la cadena en forma de lista, desordenada"""
     listaaux = []
     for nombre_producto in diccionario:
-        # if len(cadena) <= len(nombre_producto):
-        #    for x in range(len(cadena)+1):
-        #        if cadena[x]!=nombre_producto[x]:
-        #
-        # ······ agregar para que recorra letra por letra para que ordene mejor ·······
         if cadena.lower() in nombre_producto.lower():
             listaaux += [nombre_producto]
 
