@@ -1,64 +1,89 @@
 import csv
 
-CANT_OPCIONES = 5
 LISTA_OPCIONES = ['Inflación por supermercado',
                   'Inflación por producto',
                   'Inflación general promedio',
                   'Mejor precio para un producto',
                   'Salir']
+INFLACION_POR_SUPERMERCADO = 1
+INFLACION_POR_PRODUCTO = 2
+INFLACION_GENERAL_PROMEDIO = 3
+MEJOR_PRECIO_PRODUCTO = 4
+CANT_OPCIONES = len(LISTA_OPCIONES)
 AÑO = 2016
 
 
 def main():
     """Inicia un programa con interfaz amigable para cálculos de inflación,
      entre otros, utilizando tres archivos csv."""
-    datos, lista_registros_fallidos = cargar_datos_en_diccionario("precios.csv",
+    try:
+        datos, lista_registros_fallidos = cargar_datos_en_diccionario("precios.csv",
                                                                   "productos.csv",
                                                                   "supermercados.csv")
-    imprimir_fallidos(lista_registros_fallidos)
+        imprimir_fallidos(lista_registros_fallidos)
+        opcion = ""
+    except IOError:
+        print('Error fatal: corrobore el estado de los archivos de datos.')
+        opcion = 5
 
-    opcion = ""
     while opcion != 5:
         mostrar_menu()
         opcion = pedir_opcion()
-
-        if opcion == 1:
-            print('Ingrese la fecha inicial y final del periodo a estudiar')
-            fechas = (pedir_fecha(), pedir_fecha())
-            inflacion = inflacion_por_supermercado(datos, fechas)
-            mostrar_inflacion(inflacion)
-
-        if opcion == 2:
-            try:
-                producto = pedir_producto(datos)
-                print('Ingrese la fecha inicial y final del periodo a estudiar')
-                fechas = (pedir_fecha(), pedir_fecha())
-                inflacion = calcular_inflacion(datos, producto,
-                                               fechas)
-                mostrar_inflacion(inflacion)
-            except (TypeError, KeyError) as error:
-                print(error)
-
-        if opcion == 3:
-            print('Ingrese la fecha inicial y final del periodo a estudiar')
-            fechas = (pedir_fecha(), pedir_fecha())
-            inflacion_promedio = inflacion_general_promedio(datos, fechas)
-            mostrar_inflacion_promedio(inflacion_promedio)
-
-        if opcion == 4:
-            try:
-                supermercado, precio = mejor_precio_supermercado(datos, pedir_producto(datos),
-                                                                 pedir_fecha())
-                mostrar_mejor_precio(supermercado, precio)
-            except TypeError:
-                print("El producto no se vende en ninguno de los supermercados para esa fecha ")
-
+        if opcion == INFLACION_POR_SUPERMERCADO:
+            calcular_inflacion_por_supermercado(datos)
+        elif opcion == INFLACION_POR_PRODUCTO:
+            calcular_inflacion_por_producto(datos)
+        elif opcion == INFLACION_GENERAL_PROMEDIO:
+            calcular_inflacion_general(datos)
+        elif opcion == MEJOR_PRECIO_PRODUCTO:
+            calcular_mejor_precio(datos)
     print("Hasta luego.")
 
 
-# ----------------------------------------------------------------------
+def calcular_inflacion_por_supermercado(datos):
+    """Calcula la inflacion por supermercado en un periodo de fechas pedido al usuario y lo imprime"""
+    print('Ingrese la fecha inicial y final del periodo a estudiar')
+    fechas = (pedir_fecha(), pedir_fecha())
+    inflacion = inflacion_por_supermercado(datos, fechas)
+    mostrar_inflacion(inflacion)
+
+
+def calcular_inflacion_por_producto(datos):
+    """Calcula la inflacion de un producto en un periodo de fechas pedido al usuario y lo imprime"""
+    try:
+        producto = pedir_producto(datos)
+        print('Ingrese la fecha inicial y final del periodo a estudiar')
+        fechas = (pedir_fecha(), pedir_fecha())
+        inflacion = calcular_inflacion(datos, producto,
+                                       fechas)
+        mostrar_inflacion(inflacion)
+    except (TypeError, KeyError) as error:
+        print(error)
+
+
+def calcular_inflacion_general(datos):
+    """Calcula el promedio de la inflacion general en un periodo de fechas pedido al usuario y la imprime"""
+    print('Ingrese la fecha inicial y final del periodo a estudiar')
+    fechas = (pedir_fecha(), pedir_fecha())
+    inflacion_promedio = inflacion_general_promedio(datos, fechas)
+    mostrar_inflacion_promedio(inflacion_promedio)
+
+
+def calcular_mejor_precio(datos):
+    """Calcula el mejor precio para un producto en un periodo de fechas pedido al usuario y lo imprime"""
+    try:
+        producto = pedir_producto(datos)
+        fecha = pedir_fecha()
+        supermercado, precio = mejor_precio_supermercado(datos, producto,
+                                                         fecha)
+        mostrar_mejor_precio(supermercado, precio)
+    except TypeError:
+        print("El producto no se vende en ninguno de los supermercados para esa fecha ")
+
+
+# ---------------------------------------------------------------------
 # |                    Cargado de datos en memoria                    |
-# ----------------------------------------------------------------------
+# ---------------------------------------------------------------------
 
 def cargar_datos_supermercado_en_diccionario(arch):
     """Ingresa como parametro la ruta de un archivo csv con 2 campos.
@@ -95,7 +120,7 @@ def verificar_registro_principal(registro, encabezado):
 
 def verificar_registro_secundario(registro, encabezado):
     """Recibe una lista con la linea actual del archivo productos.csv y el encabezado
-     del mismo archivo. Devuelve True si la linea esta bien cargada y False si no lo esta """
+     del mismo archivo. Devuelve True si la linea esta bien cargada y False si no lo está"""
     try:
         if len(registro) != len(encabezado):
             return False
@@ -118,8 +143,8 @@ def cargar_datos_en_diccionario(arch1, arch2, arch3):
             diccionario_sup = cargar_datos_supermercado_en_diccionario(arch3)
             datos_productos_csv = csv.reader(secundario)
             archivo_csv = csv.reader(principal)
-            encabezado_principal = next(archivo_csv, None)  # obtiene el encabezado
-            encabezado_secundario = next(datos_productos_csv, None)  # obtiene el encabezado
+            encabezado_principal = next(archivo_csv, None)
+            encabezado_secundario = next(datos_productos_csv, None)
             registro_principal = next(archivo_csv, None)
             registro_secundario = next(datos_productos_csv, None)
             dicc_productos = {}
@@ -171,12 +196,15 @@ def cargar_datos_en_diccionario(arch1, arch2, arch3):
                 registro_secundario = next(datos_productos_csv, None)
         return dicc_productos, lista_registros_fallidos
     except IOError:
-        print("No se encontró el/los archivo/s. Ingrese bien la ruta/nombre del archivo/s")
+        print("No se encontró el/los archivo/s. Verifique la existencia de los archivos:"
+              "precios.csv"
+              "productos.csv"
+              "supermercados.csv")
 
 
-# -------------------------------------------------------------------------
-# |                  Inflacion por Supermercado y Prodcuto                |
-# --------------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# |              Inflacion por Supermercado y Prodcuto                |
+# ---------------------------------------------------------------------
 
 
 def inflacion_por_supermercado(diccionario, fechas):
@@ -221,9 +249,9 @@ def calcular_inflacion(diccionario, producto, fechas):
     return None
 
 
-# -------------------------------------------------------------------
-# |                     Inflacion general promedio                  |
-# -------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# |                     Inflacion general promedio                    |
+# ---------------------------------------------------------------------
 
 
 def inflacion_general_promedio(diccionario, fechas):
@@ -239,9 +267,9 @@ def inflacion_general_promedio(diccionario, fechas):
     return (inflacion_promedio / len(diccionario.keys())), fechas
 
 
-# -----------------------------------------------------------------
-# |                    Mejor Precio Producto                     |
-# -----------------------------------------------------------------
+# ----------------------------------------------------------------------
+# |                         Mejor Precio Producto                      |
+# ----------------------------------------------------------------------
 
 def mejor_precio_supermercado(diccionario, producto, fecha):
     """Recibe como parametro un diccionario, el nombre de un producto y una fecha.
@@ -259,18 +287,20 @@ def mejor_precio_supermercado(diccionario, producto, fecha):
             elif precio < mejor_precio:
                 mejor_precio = precio
                 supermercado_mejor_precio = clave
-        except TypeError:  # si el supermercado no vende el producto en esa fecha, pasa al siguiente
+        except TypeError:
+            # si el supermercado no vende el producto en esa fecha, pasa al siguiente
             continue
     return supermercado_mejor_precio, mejor_precio
 
 
-# ----------------------------------------------------------------------------------
-# |                 Interfaz e impresión en pantalla                               |
-# ----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------
+# |                 Interfaz e impresión en pantalla                    |
+# -----------------------------------------------------------------------
 
 
 def mostrar_inflacion_promedio(inflacion_promedio):
-    """Recibe una tupla con la inflacion promedio y una tupla de fechas y los imprime por pantalla"""
+    """Recibe una tupla con la inflacion promedio y una tupla de fechas
+    y los imprime por pantalla"""
     print("La inflacion general promedio entre las fechas {} y {} es : {:.2f}% ".format(
         inflacion_promedio[1][0], inflacion_promedio[1][1], inflacion_promedio[0]))
 
@@ -292,7 +322,8 @@ def mostrar_mejor_precio(supermercado, precio):
         print(
             "El precio más bajo del producto es ${:.2f} y se encuentra en el supermercado {}".format(
                 precio, supermercado))
-    except TypeError:  # Si el producto no se vende en ningun supermercado para esa fecha, tira error
+    except TypeError:  # Si el producto no se vende en ningun supermercado
+        #  para esa fecha, tira error
         raise TypeError("El producto no se vende en ninguno de los supermercados para esa fecha ")
 
 
@@ -341,7 +372,12 @@ def pedir_fecha():
 
 def pedir_producto(diccionario):
     """Pide un nombre de producto (o una parte de él)"""
-    return verif_ingreso_producto(input('Producto buscado: '), diccionario)
+    while True:
+        try:
+            ingresado = verif_ingreso_producto(input('Producto buscado: '), diccionario)
+            return ingresado
+        except ValueError:
+            print('Debes ingresar por lo menos una letra.')
 
 
 # ----------------------------------------------------------------------------
@@ -362,6 +398,8 @@ def verif_ingreso_producto(cadena, diccionario):
     """Dada una cadena 'de busqueda' y un diccionario, muestra todos los productos
     que contengan la cadena y se solicita que se elija uno de ellos. Devuelve
     la descripcion del producto elegido"""
+    if cadena == '':
+        raise ValueError
     encontrados = buscar_producto_ingresado(cadena, diccionario)
     imprimir_opciones(encontrados)
     buscado = encontrados[pedir_opcion(len(encontrados)) - 1]
