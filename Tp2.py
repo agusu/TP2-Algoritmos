@@ -207,13 +207,13 @@ def cargar_datos_en_diccionario(arch1, arch2, arch3):
 # ---------------------------------------------------------------------
 
 
-def inflacion_por_supermercado(diccionario, fechas):
+def inflacion_por_supermercado(diccionario_datos, fechas):
     """Recibe como parametro un diccionario y una tupla de fechas.
     Devuelve la inflacion total de los supermercados en un diccionario"""
     inflacion_total = {}
     cantidad_de_productos = 1
-    for producto in diccionario.keys():
-        inflacion = calcular_inflacion(diccionario, producto, fechas)
+    for producto in diccionario_datos.keys():
+        inflacion = calcular_inflacion(diccionario_datos, producto, fechas)
         for supermercado, inflacion_producto in inflacion:
             if supermercado not in inflacion_total.keys():
                 inflacion_total[supermercado] = [inflacion_producto, cantidad_de_productos]
@@ -226,12 +226,12 @@ def inflacion_por_supermercado(diccionario, fechas):
     return inflacion_total.items()
 
 
-def calcular_inflacion(diccionario, producto, fechas):
+def calcular_inflacion(diccionario_datos, producto, fechas):
     """Recibe como parametro un diccionario, una cadena y una tupla de fechas.
     Devuelve una lista de tuplas, donde cada tupla contiene el nombre del
     supermercado y su inflacion"""
     inflacion = []
-    supermercado = diccionario.get(producto, {})
+    supermercado = diccionario_datos.get(producto, {})
     # asigna en la variable supermercado, un dicionario cuya clave
     # es el nombre del supermercado y el valor es otro diccionario de fechas
     for clave in supermercado:
@@ -254,27 +254,27 @@ def calcular_inflacion(diccionario, producto, fechas):
 # ---------------------------------------------------------------------
 
 
-def inflacion_general_promedio(diccionario, fechas):
+def inflacion_general_promedio(diccionario_datos, fechas):
     """Recibe como parametro un diccionario y un rango de fechas.
     Devuelve la inflacion general promedio de todos los productos """
     inflacion_promedio = 0
-    for producto in diccionario.keys():
-        inflacion = calcular_inflacion(diccionario, producto, fechas)
+    for producto in diccionario_datos.keys():
+        inflacion = calcular_inflacion(diccionario_datos, producto, fechas)
         inflacion_total_producto = 0
         for supermecado, inflacion_parcial_producto in inflacion:
             inflacion_total_producto += inflacion_parcial_producto
         inflacion_promedio += inflacion_total_producto / len(inflacion)
-    return (inflacion_promedio / len(diccionario.keys())), fechas
+    return (inflacion_promedio / len(diccionario_datos.keys())), fechas
 
 
 # ----------------------------------------------------------------------
 # |                         Mejor Precio Producto                      |
 # ----------------------------------------------------------------------
 
-def mejor_precio_supermercado(diccionario, producto, fecha):
+def mejor_precio_supermercado(diccionario_datos, producto, fecha):
     """Recibe como parametro un diccionario, el nombre de un producto y una fecha.
     Devuelve el precio más bajo  y el nombre del supermecado que vende el producto a ese precio"""
-    supermecado = diccionario.get(producto, {})
+    supermecado = diccionario_datos.get(producto, {})
     supermercado_mejor_precio = ''
     mejor_precio = None
     for clave in supermecado:
@@ -370,11 +370,11 @@ def pedir_fecha():
     return año + mes
 
 
-def pedir_producto(diccionario):
+def pedir_producto(diccionario_datos):
     """Pide un nombre de producto (o una parte de él)"""
     while True:
         try:
-            ingresado = verif_ingreso_producto(input('Producto buscado: '), diccionario)
+            ingresado = verif_ingreso_producto(input('Producto buscado: '), diccionario_datos)
             return ingresado
         except ValueError:
             print('Debes ingresar por lo menos una letra.')
@@ -383,24 +383,24 @@ def pedir_producto(diccionario):
 # ----------------------------------------------------------------------------
 # |                             Verificaciones                               |
 # ----------------------------------------------------------------------------
-def buscar_producto_ingresado(cadena, diccionario):
+def buscar_producto_ingresado(cadena, diccionario_datos):
     """Busca la cadena en el diccionario pasado por parámetro y devuelve
     todas las claves que contienen la cadena en forma de lista, desordenada"""
     listaaux = []
-    for nombre_producto in diccionario:
+    for nombre_producto in diccionario_datos:
         if cadena.lower() in nombre_producto.lower():
             listaaux += [nombre_producto]
 
     return listaaux
 
 
-def verif_ingreso_producto(cadena, diccionario):
+def verif_ingreso_producto(cadena, diccionario_datos):
     """Dada una cadena 'de busqueda' y un diccionario, muestra todos los productos
     que contengan la cadena y se solicita que se elija uno de ellos. Devuelve
     la descripcion del producto elegido"""
     if cadena == '':
         raise ValueError
-    encontrados = buscar_producto_ingresado(cadena, diccionario)
+    encontrados = buscar_producto_ingresado(cadena, diccionario_datos)
     imprimir_opciones(encontrados)
     buscado = encontrados[pedir_opcion(len(encontrados)) - 1]
     return buscado
