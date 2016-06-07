@@ -310,11 +310,11 @@ def mostrar_inflacion(lista):
     Imprime por pantalla los diferentes supermercados y su inflacion"""
     try:
         for supermercado, inflacion in lista:
-            print("La inflacion del supermercado {} para ese producto es {:.2f}% ".format(
+            print("La inflacion del supermercado {} para ese periodo es de {:.2f}% ".format(
                 supermercado, inflacion))
     except:
         raise TypeError(
-            "El producto no se vende en ninguno de los supermercados para ese rango de fechas")
+            "No se poseen datos del supermercado en esas fechas")
 
 
 def mostrar_mejor_precio(supermercado, precio):
